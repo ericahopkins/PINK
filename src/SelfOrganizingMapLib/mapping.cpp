@@ -14,7 +14,8 @@
 
 namespace pink {
 
-void SOM::mapping()
+template <typename T>
+void SOM<T>::mapping(Image<T> const& image)
 {
     std::cout << "  Starting C version of mapping.\n" << std::endl;
 
@@ -76,5 +77,8 @@ void SOM::mapping()
     std::cout << "  Progress: " << std::setw(12) << updateCount << " updates, 100 % ("
          << std::chrono::duration_cast<std::chrono::seconds>(myclock::now() - startTime).count() << " s)" << std::endl;
 }
+
+/// template instantiation
+template class SOM<float>;
 
 } // namespace pink

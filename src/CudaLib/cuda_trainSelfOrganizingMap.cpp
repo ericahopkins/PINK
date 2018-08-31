@@ -111,7 +111,7 @@ void cuda_trainSelfOrganizingMap(InputData const& inputData)
                 inputData.som_width, inputData.som_height, inputData.som_depth, inputData.som_size,
                 inputData.numberOfChannels * inputData.neuron_size, inputData.function, inputData.layout,
 				inputData.sigma, inputData.damping, inputData.maxUpdateDistance,
-                inputData.usePBC, inputData.dimensionality);
+                inputData.usePBC);
 
             cuda_copyDeviceToHost_int(&bestMatch, d_bestMatch, 1);
             som.updateCounter(bestMatch);
@@ -135,7 +135,7 @@ void cuda_trainSelfOrganizingMap(InputData const& inputData)
     som.write(inputData.resultFilename);
     cout << "done." << endl;
 
-    som.printUpdateCounter();
+    if (inputData.verbose) som.print_update_counter();
 
     // Free memory
     cuda_free(d_som);

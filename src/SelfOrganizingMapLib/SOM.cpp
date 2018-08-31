@@ -16,141 +16,188 @@
 
 namespace pink {
 
-SOM::SOM(InputData const& inputData)
- : inputData_(inputData),
-   som_(inputData.numberOfChannels * inputData.som_size * inputData.neuron_size),
-   updateCounterMatrix_(inputData.som_size)
+template <typename T>
+SOM<T>::SOM(int width, int height, int depth, Layout layout, bool periodic_boundary_conditions,
+    int neuron_dim, int number_of_channels, DistributionFunction distribution_function,
+	float sigma, float damping, int max_update_distance,
+    SOMInitialization init, int seed, std::string const& init_filename)
+ : width(width),
+   height(height),
+   depth(depth),
+   layout(layout),
+   periodic_boundary_conditions(periodic_boundary_conditions),
+   neuron_dim(neuron_dim),
+   number_of_channels(number_of_channels),
+   som_size(width * height * depth),
+   neuron_size(neuron_dim * neuron_dim),
+   distribution_function(distribution_function),
+   sigma(sigma),
+   damping(damping),
+   max_update_distance(max_update_distance),
+   som(som_size * neuron_size * number_of_channels),
+   update_counter_matrix(som_size, 0)
 {
     // Initialize SOM
-    if (inputData.init == ZERO)
-        fillWithValue(&som_[0], som_.size());
-    else if (inputData.init == RANDOM)
-        fillWithRandomNumbers(&som_[0], som_.size(), inputData.seed);
-    else if (inputData.init == RANDOM_WITH_PREFERRED_DIRECTION) {
-        fillWithRandomNumbers(&som_[0], som_.size(), inputData.seed);
-        for (int n = 0; n < inputData.som_size; ++n)
-            for (int c = 0; c < inputData.numberOfChannels; ++c)
-                for (int i = 0; i < inputData.neuron_dim; ++i)
-                    som_[(n*inputData.numberOfChannels + c)*inputData.neuron_size + i*inputData.neuron_dim + i] = 1.0f;
+    if (init == SOMInitialization::ZERO)
+        fillWithValue(&som[0], som.size());
+    else if (init == SOMInitialization::RANDOM)
+        fillWithRandomNumbers(&som[0], som.size(), seed);
+    else if (init == SOMInitialization::RANDOM_WITH_PREFERRED_DIRECTION) {
+        fillWithRandomNumbers(&som[0], som.size(), seed);
+        for (int n = 0; n < som_size; ++n)
+            for (int c = 0; c < number_of_channels; ++c)
+                for (int i = 0; i < neuron_dim; ++i)
+                    som[(n*number_of_channels + c)*neuron_size + i*neuron_dim + i] = 1.0f;
     }
-    else if (inputData.init == FILEINIT) {
-        std::ifstream is(inputData.somFilename);
-        if (!is) throw std::runtime_error("Error opening " + inputData.somFilename);
+    else if (init == SOMInitialization::FILEINIT) {
+        std::ifstream is(init_filename);
+        if (!is) throw std::runtime_error("Error opening " + init_filename);
 
         int tmp;
         is.read((char*)&tmp, sizeof(int));
-        if (tmp != inputData.numberOfChannels) throw std::runtime_error("readSOM: wrong numberOfChannels.");
+        if (tmp != number_of_channels) throw std::runtime_error("readSOM: wrong number_of_channels.");
         is.read((char*)&tmp, sizeof(int));
-        if (tmp != inputData.som_width) throw std::runtime_error("readSOM: wrong width.");
+        if (tmp != width) throw std::runtime_error("readSOM: wrong width.");
         is.read((char*)&tmp, sizeof(int));
-        if (tmp != inputData.som_height) throw std::runtime_error("readSOM: wrong height.");
+        if (tmp != height) throw std::runtime_error("readSOM: wrong height.");
         is.read((char*)&tmp, sizeof(int));
-        if (tmp != inputData.som_depth) throw std::runtime_error("readSOM: wrong depth.");
+        if (tmp != depth) throw std::runtime_error("readSOM: wrong depth.");
         is.read((char*)&tmp, sizeof(int));
-        if (tmp != inputData.neuron_dim) throw std::runtime_error("readSOM: wrong neuron_dim.");
+        if (tmp != neuron_dim) throw std::runtime_error("readSOM: wrong neuron_dim.");
         is.read((char*)&tmp, sizeof(int));
-        if (tmp != inputData.neuron_dim) throw std::runtime_error("readSOM: wrong neuron_dim.");
-        is.read((char*)&som_[0], inputData.numberOfChannels * inputData.som_size * inputData.neuron_dim
-            * inputData.neuron_dim * sizeof(float));
+        if (tmp != neuron_dim) throw std::runtime_error("readSOM: wrong neuron_dim.");
+        is.read((char*)&som[0], number_of_channels * som_size * neuron_dim
+            * neuron_dim * sizeof(float));
     } else
-        fatalError("Unknown initType.");
+        fatalError("Unknown init type.");
 
     // Set distribution function
-    if (inputData_.function == GAUSSIAN)
-        ptrDistributionFunctor_ = std::make_shared<GaussianFunctor>(inputData_.sigma);
-    else if (inputData_.function == MEXICANHAT)
-        ptrDistributionFunctor_ = std::make_shared<MexicanHatFunctor>(inputData_.sigma);
+    if (distribution_function == DistributionFunction::GAUSSIAN)
+        ptr_distribution_functor = std::make_shared<GaussianFunctor>(sigma);
+    else if (distribution_function == DistributionFunction::MEXICANHAT)
+        ptr_distribution_functor = std::make_shared<MexicanHatFunctor>(sigma);
     else
         fatalError("Unknown distribution function.");
 
+    int dimensionality = 1;
+    if (height > 1) ++dimensionality;
+    if (depth > 1) ++dimensionality;
+
     // Set distance function
-    if (inputData_.layout == QUADRATIC) {
-        if (inputData_.usePBC) {
-            if (inputData_.dimensionality == 1) {
-                ptrDistanceFunctor_ = std::make_shared<CartesianDistanceFunctor<1, true>>(inputData.som_width);
-            } else if (inputData_.dimensionality == 2) {
-                ptrDistanceFunctor_ = std::make_shared<CartesianDistanceFunctor<2, true>>(inputData.som_width, inputData.som_height);
-            } else if (inputData_.dimensionality == 3) {
-                ptrDistanceFunctor_ = std::make_shared<CartesianDistanceFunctor<3, true>>(inputData.som_width, inputData.som_height, inputData.som_depth);
+    if (layout == Layout::QUADRATIC) {
+        if (periodic_boundary_conditions) {
+            if (dimensionality == 1) {
+                ptr_distance_functor = std::make_shared<CartesianDistanceFunctor<1, true>>(width);
+            } else if (dimensionality == 2) {
+                ptr_distance_functor = std::make_shared<CartesianDistanceFunctor<2, true>>(width, height);
+            } else if (dimensionality == 3) {
+                ptr_distance_functor = std::make_shared<CartesianDistanceFunctor<3, true>>(width, height, depth);
             }
         } else {
-            if (inputData_.dimensionality == 1) {
-                ptrDistanceFunctor_ = std::make_shared<CartesianDistanceFunctor<1>>(inputData.som_width);
-            } else if (inputData_.dimensionality == 2) {
-                ptrDistanceFunctor_ = std::make_shared<CartesianDistanceFunctor<2>>(inputData.som_width, inputData.som_height);
-            } else if (inputData_.dimensionality == 3) {
-                ptrDistanceFunctor_ = std::make_shared<CartesianDistanceFunctor<3>>(inputData.som_width, inputData.som_height, inputData.som_depth);
+            if (dimensionality == 1) {
+                ptr_distance_functor = std::make_shared<CartesianDistanceFunctor<1>>(width);
+            } else if (dimensionality == 2) {
+                ptr_distance_functor = std::make_shared<CartesianDistanceFunctor<2>>(width, height);
+            } else if (dimensionality == 3) {
+                ptr_distance_functor = std::make_shared<CartesianDistanceFunctor<3>>(width, height, depth);
             }
         }
-    } else if (inputData_.layout == HEXAGONAL) {
-        ptrDistanceFunctor_ = std::make_shared<HexagonalDistanceFunctor>(inputData.som_width);
+    } else if (layout == Layout::HEXAGONAL) {
+        ptr_distance_functor = std::make_shared<HexagonalDistanceFunctor>(width);
     } else {
         fatalError("Unknown layout.");
     }
+
+    // Memory allocation
+    int rotated_images_size = number_of_channels * number_of_rotations * neuron_size;
+    if (use_flip) rotated_images_size *= 2;
+
+    if (verbose) {
+    	std::cout << "  Size of rotated images = " << rotated_images_size * sizeof(T) << " bytes" << std::endl;
+        std::cout << "  Size of euclidean distance matrix = " << som_size * sizeof(T) << " bytes" << std::endl;
+        std::cout << "  Size of best rotation matrix = " << som_size * sizeof(int) << " bytes" << std::endl;
+        std::cout << "  Size of SOM = " << getSizeInBytes() << " bytes\n" << std::endl;
+    }
+
+	std::vector<T> rotated_images, euclidean_distance_matrix;
+	std::vector<int> best_rotation_matrix;
+
+    if (cpu) {
+		rotated_images.resize(rotated_images_size);
+		euclidean_distance_matrix.resize(som_size);
+		best_rotation_matrix.resize(som_size);
+    } else {
+
+    }
 }
 
-void SOM::write(std::string const& filename) const
+template <typename T>
+void SOM<T>::write(std::string const& filename) const
 {
     std::ofstream os(filename);
     if (!os) throw std::runtime_error("Error opening " + filename);
 
-    os.write((char*)&inputData_.numberOfChannels, sizeof(int));
-    os.write((char*)&inputData_.som_width, sizeof(int));
-    os.write((char*)&inputData_.som_height, sizeof(int));
-    os.write((char*)&inputData_.som_depth, sizeof(int));
-    os.write((char*)&inputData_.neuron_dim, sizeof(int));
-    os.write((char*)&inputData_.neuron_dim, sizeof(int));
-    os.write((char*)&som_[0], inputData_.numberOfChannels * inputData_.som_size
-        * inputData_.neuron_dim * inputData_.neuron_dim * sizeof(float));
+    os.write((char*)&number_of_channels, sizeof(int));
+    os.write((char*)&width, sizeof(int));
+    os.write((char*)&height, sizeof(int));
+    os.write((char*)&depth, sizeof(int));
+    os.write((char*)&neuron_dim, sizeof(int));
+    os.write((char*)&neuron_dim, sizeof(int));
+    os.write((char*)&som[0], number_of_channels * som_size
+        * neuron_dim * neuron_dim * sizeof(float));
 }
 
-void SOM::updateNeurons(float *rotatedImages, int bestMatch, int *bestRotationMatrix)
+template <typename T>
+void SOM<T>::update_neurons(float *rotatedImages, int bestMatch, int *bestRotationMatrix)
 {
     float distance, factor;
-    float *current_neuron = &som_[0];
+    float *current_neuron = &som[0];
 
-    for (int i = 0; i < inputData_.som_size; ++i) {
-        distance = (*ptrDistanceFunctor_)(bestMatch, i);
-        if (inputData_.maxUpdateDistance <= 0.0 or distance < inputData_.maxUpdateDistance) {
-            factor = (*ptrDistributionFunctor_)(distance) * inputData_.damping;
+    for (int i = 0; i < som_size; ++i) {
+        distance = (*ptr_distance_functor)(bestMatch, i);
+        if (max_update_distance <= 0.0 or distance < max_update_distance) {
+            factor = (*ptr_distribution_functor)(distance) * damping;
             updateSingleNeuron(current_neuron, rotatedImages + bestRotationMatrix[i]
-                * inputData_.numberOfChannels * inputData_.neuron_size, factor);
+                * number_of_channels * neuron_size, factor);
         }
-        current_neuron += inputData_.numberOfChannels * inputData_.neuron_size;
+        current_neuron += number_of_channels * neuron_size;
     }
 }
 
-void SOM::printUpdateCounter() const
+template <typename T>
+void SOM<T>::print_update_counter() const
 {
-    if (inputData_.verbose) {
-        std::cout << "\n  Number of updates of each neuron:\n" << std::endl;
-        if (inputData_.layout == HEXAGONAL) {
-            int radius = (inputData_.som_width - 1)/2;
-            for (int pos = 0, x = -radius; x <= radius; ++x) {
-                for (int y = -radius - std::min(0,x); y <= radius - std::max(0,x); ++y, ++pos) {
-                    std::cout << std::setw(6) << updateCounterMatrix_[pos] << " ";
-                }
-                std::cout << std::endl;
-            }
-        } else {
-            for (int pos = 0, d = 0; d != inputData_.som_depth; ++d) {
-                for (int h = 0; h != inputData_.som_height; ++h) {
-                    for (int w = 0; w != inputData_.som_width; ++w, ++pos) {
-                        std::cout << std::setw(6) << updateCounterMatrix_[pos] << " ";
-                    }
-                    std::cout << std::endl;
-                }
-                std::cout << std::endl;
-            }
-        }
-    }
+	std::cout << "\n  Number of updates of each neuron:\n" << std::endl;
+	if (layout == Layout::HEXAGONAL) {
+		int radius = (width - 1)/2;
+		for (int pos = 0, x = -radius; x <= radius; ++x) {
+			for (int y = -radius - std::min(0,x); y <= radius - std::max(0,x); ++y, ++pos) {
+				std::cout << std::setw(6) << update_counter_matrix[pos] << " ";
+			}
+			std::cout << std::endl;
+		}
+	} else {
+		for (int pos = 0, d = 0; d != depth; ++d) {
+			for (int h = 0; h != height; ++h) {
+				for (int w = 0; w != width; ++w, ++pos) {
+					std::cout << std::setw(6) << update_counter_matrix[pos] << " ";
+				}
+				std::cout << std::endl;
+			}
+			std::cout << std::endl;
+		}
+	}
 }
 
-void SOM::updateSingleNeuron(float *neuron, float *image, float factor)
+template <typename T>
+void SOM<T>::updateSingleNeuron(float *neuron, float *image, float factor)
 {
-    for (int i = 0; i < inputData_.numberOfChannels * inputData_.neuron_size; ++i) {
+    for (int i = 0; i < number_of_channels * neuron_size; ++i) {
         neuron[i] -= (neuron[i] - image[i]) * factor;
     }
 }
+
+/// template instantiation
+template class SOM<float>;
 
 } // namespace pink

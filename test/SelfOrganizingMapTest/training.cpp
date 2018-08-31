@@ -5,17 +5,17 @@
  * @author Bernd Doser, HITS gGmbH
  */
 
-#include <algorithm>
-#include <cmath>
 #include "gtest/gtest.h"
-#include <vector>
 
+#include "ImageProcessingLib/Image.h"
 #include "SelfOrganizingMapLib/SOM.h"
 
 using namespace pink;
 
 TEST(SelfOrganizingMapTest, quadratic)
 {
-	InputData input_data;
-	SOM som(input_data);
+	SOM<float> som(3, 3, 1, Layout::QUADRATIC, 60, 1);
+	Image<float> image(100, 100);
+
+	som.training(image);
 }
