@@ -26,20 +26,6 @@ void training(InputData const& input_data)
 
     SOM<float> som(inputData);
 
-    // Memory allocation
-    int rotatedImagesSize = input_data.numberOfChannels * input_data.numberOfRotations * input_data.neuron_size;
-    if (input_data.useFlip) rotatedImagesSize *= 2;
-    if (input_data.verbose) std::cout << "  Size of rotated images = " << rotatedImagesSize * sizeof(float) << " bytes" << std::endl;
-    std::vector<float> rotatedImages(rotatedImagesSize);
-
-    if (input_data.verbose) std::cout << "  Size of euclidean distance matrix = " << input_data.som_size * sizeof(float) << " bytes" << std::endl;
-    std::vector<float> euclideanDistanceMatrix(input_data.som_size);
-
-    if (input_data.verbose) std::cout << "  Size of best rotation matrix = " << input_data.som_size * sizeof(int) << " bytes" << std::endl;
-    std::vector<int> bestRotationMatrix(input_data.som_size);
-
-    if (input_data.verbose) std::cout << "  Size of SOM = " << som.getSizeInBytes() << " bytes\n" << std::endl;
-
     float progress = 0.0;
     float progressStep = 1.0 / input_data.numIter / input_data.numberOfImages;
     float nextProgressPrint = input_data.progressFactor;
@@ -86,6 +72,8 @@ void training(InputData const& input_data)
                 for (int i(0); i < maxTimer; ++i) timer[i] = std::chrono::high_resolution_clock::duration::zero();
             }
             progress += progressStep;
+
+            auto&& timer = som.training(*iterImage);
 
             {
                 TimeAccumulator localTimeAccumulator(timer[0]);

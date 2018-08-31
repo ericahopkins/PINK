@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <array>
 #include <chrono>
 #include <memory>
 #include <string>
@@ -50,7 +51,7 @@ public:
     float const* getDataPointer() const { return &som[0]; }
 
     //! Main routine for SOM training.
-    void training(Image<T> const& image);
+    std::array<std::chrono::high_resolution_clock::duration, 3> training(Image<T> const& image);
 
     //! Main routine for SOM mapping.
     void mapping(Image<T> const& image);
