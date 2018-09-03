@@ -24,7 +24,7 @@ void training(InputData const& input_data)
 {
     std::cout << "  Starting C version of training.\n" << std::endl;
 
-    SOM<float> som(inputData);
+    SOM<float> som(input_data);
 
     float progress = 0.0;
     float progressStep = 1.0 / input_data.numIter / input_data.numberOfImages;
@@ -33,9 +33,7 @@ void training(InputData const& input_data)
     if (progressPrecision < 0) progressPrecision = 0;
 
     // Start timer
-    auto startTime = myclock::now();
-    const int maxTimer = 3;
-    std::chrono::high_resolution_clock::duration timer[maxTimer] = {std::chrono::high_resolution_clock::duration::zero()};
+    auto&& start_time = myclock::now();
 
     int interStoreCount = 0;
     int updateCount = 0;
@@ -49,7 +47,7 @@ void training(InputData const& input_data)
             {
                 std::cout << "  Progress: " << std::setw(12) << updateCount << " updates, "
                      << std::fixed << std::setprecision(progressPrecision) << std::setw(3) << progress*100 << " % ("
-                     << std::chrono::duration_cast<std::chrono::seconds>(myclock::now() - startTime).count() << " s)" << std::endl;
+                     << std::chrono::duration_cast<std::chrono::seconds>(myclock::now() - start_time).count() << " s)" << std::endl;
                 if (input_data.verbose) {
                     std::cout << "  Time for image rotations = " << std::chrono::duration_cast<std::chrono::milliseconds>(timer[0]).count() << " ms" << std::endl;
                     std::cout << "  Time for euclidean distance = " << std::chrono::duration_cast<std::chrono::milliseconds>(timer[1]).count() << " ms" << std::endl;
@@ -68,43 +66,17 @@ void training(InputData const& input_data)
                 }
 
                 nextProgressPrint += input_data.progressFactor;
-                startTime = myclock::now();
+                start_time = myclock::now();
                 for (int i(0); i < maxTimer; ++i) timer[i] = std::chrono::high_resolution_clock::duration::zero();
             }
             progress += progressStep;
 
             auto&& timer = som.training(*iterImage);
-
-            {
-                TimeAccumulator localTimeAccumulator(timer[0]);
-                generateRotatedImages(&rotatedImages[0], iterImage->getPointerOfFirstPixel(), input_data.numberOfRotations,
-                    input_data.image_dim, input_data.neuron_dim, input_data.useFlip, input_data.interpolation,
-                    input_data.numberOfChannels);
-            }
-
-            {
-                TimeAccumulator localTimeAccumulator(timer[1]);
-                generateEuclideanDistanceMatrix(&euclideanDistanceMatrix[0], &bestRotationMatrix[0],
-                    input_data.som_size, &som_[0], input_data.numberOfChannels * input_data.neuron_size,
-                    input_data.numberOfRotationsAndFlip, &rotatedImages[0]);
-            }
-
-            {
-                TimeAccumulator localTimeAccumulator(timer[2]);
-                int bestMatch = findBestMatchingNeuron(&euclideanDistanceMatrix[0], input_data.som_size);
-                updateCounter(bestMatch);
-                updateNeurons(&rotatedImages[0], bestMatch, &bestRotationMatrix[0]);
-            }
         }
     }
 
     std::cout << "  Progress: " << std::setw(12) << updateCount << " updates, 100 % ("
-         << std::chrono::duration_cast<std::chrono::seconds>(myclock::now() - startTime).count() << " s)" << std::endl;
-    if (input_data.verbose) {
-        std::cout << "  Time for image rotations = " << std::chrono::duration_cast<std::chrono::milliseconds>(timer[0]).count() << " ms" << std::endl;
-        std::cout << "  Time for euclidean distance = " << std::chrono::duration_cast<std::chrono::milliseconds>(timer[1]).count() << " ms" << std::endl;
-        std::cout << "  Time for SOM update = " << std::chrono::duration_cast<std::chrono::milliseconds>(timer[2]).count() << " ms" << std::endl;
-    }
+         << std::chrono::duration_cast<std::chrono::seconds>(myclock::now() - start_time).count() << " s)" << std::endl;
 
     if (input_data.verbose) std::cout << "  Write final SOM to " << input_data.resultFilename << " ... " << std::flush;
     som.write(input_data.resultFilename);

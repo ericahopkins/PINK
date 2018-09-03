@@ -36,6 +36,9 @@ public:
 		float sigma, float damping, int max_update_distance,
         SOMInitialization init, int seed, std::string const& init_filename);
 
+	//! Destructor
+    ~SOM();
+
     void write(std::string const& filename) const;
 
     int getSize() const { return som.size(); }
@@ -51,24 +54,31 @@ public:
     float const* getDataPointer() const { return &som[0]; }
 
     //! Main routine for SOM training.
-    std::array<std::chrono::high_resolution_clock::duration, 3> training(Image<T> const& image);
+    void training(Image<T> const& image);
 
     //! Main routine for SOM mapping.
-    void mapping(Image<T> const& image);
+    void mapping(Image<T> const& image) const;
 
     //! Print matrix of SOM updates.
     void print_update_counter() const;
 
 private:
 
+    void generate_rotated_images(Image<T> const& image) const;
+
+    void generate_euclidean_distance_matrix() const;
+
+    //! Returns the position of the best matching neuron (lowest euclidean distance).
+    int find_best_match(float *euclideanDistanceMatrix, int som_size) const;
+
     //! Updating self organizing map.
     void update_neurons(float *rotatedImages, int bestMatch, int *bestRotationMatrix);
 
-    //! Save position of current SOM update.
-    void update_counter(int bestMatch) { ++update_counter_matrix[bestMatch]; }
-
     //! Updating one single neuron.
     void update_single_neuron(float *neuron, float *image, float factor);
+
+    //! Save position of current SOM update.
+    void update_counter(int bestMatch) { ++update_counter_matrix[bestMatch]; }
 
     //! SOM dimensions
     int width;
@@ -102,6 +112,9 @@ private:
 
     // Counting updates of each neuron
     std::vector<int> update_counter_matrix;
+
+    // Array for detailed timings
+	std::array<std::chrono::high_resolution_clock::duration, 3> timer;
 
 };
 

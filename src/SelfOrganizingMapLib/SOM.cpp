@@ -35,7 +35,8 @@ SOM<T>::SOM(int width, int height, int depth, Layout layout, bool periodic_bound
    damping(damping),
    max_update_distance(max_update_distance),
    som(som_size * neuron_size * number_of_channels),
-   update_counter_matrix(som_size, 0)
+   update_counter_matrix(som_size, 0),
+   timer(std::chrono::high_resolution_clock::duration::zero())
 {
     // Initialize SOM
     if (init == SOMInitialization::ZERO)
@@ -128,6 +129,16 @@ SOM<T>::SOM(int width, int height, int depth, Layout layout, bool periodic_bound
 		best_rotation_matrix.resize(som_size);
     } else {
 
+    }
+}
+
+template <typename T>
+SOM<T>::~SOM()
+{
+    if (verbose) {
+        std::cout << "  Time for image rotations = " << std::chrono::duration_cast<std::chrono::milliseconds>(timer[0]).count() << " ms" << std::endl;
+        std::cout << "  Time for euclidean distance = " << std::chrono::duration_cast<std::chrono::milliseconds>(timer[1]).count() << " ms" << std::endl;
+        std::cout << "  Time for SOM update = " << std::chrono::duration_cast<std::chrono::milliseconds>(timer[2]).count() << " ms" << std::endl;
     }
 }
 

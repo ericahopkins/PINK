@@ -21,11 +21,10 @@
 namespace pink {
 
 template <typename T>
-std::array<std::chrono::high_resolution_clock::duration, 3> SOM<T>::training(Image<T> const& image)
+void SOM<T>::training(Image<T> const& image)
 {
-	std::array<std::chrono::high_resolution_clock::duration, 3> timer = {std::chrono::high_resolution_clock::duration::zero()};
     {
-        ScopedTimer timer[0]);
+        TimeAccumulator localTimeAccumulator(timer[0]);
 		auto&& rotated_images = generate_rotated_images(image, number_of_rotations,
 			inputData_.image_dim, inputData_.neuron_dim, inputData_.useFlip, inputData_.interpolation,
 			inputData_.numberOfChannels);
@@ -43,7 +42,24 @@ std::array<std::chrono::high_resolution_clock::duration, 3> SOM<T>::training(Ima
 		update_counter(best_match);
 		update_neurons(rotated_images, best_match, best_rotation_matrix);
     }
-    return timer;
+}
+
+template <typename T>
+void SOM<T>::generate_rotated_images(Image<T> const& image) const
+{
+
+}
+
+template <typename T>
+void SOM<T>::generate_euclidean_distance_matrix() const
+{
+
+}
+
+template <typename T>
+int SOM<T>::find_best_match(float *euclideanDistanceMatrix, int som_size) const
+{
+
 }
 
 /// template instantiation
