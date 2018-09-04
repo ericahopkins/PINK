@@ -54,10 +54,15 @@ public:
     float const* getDataPointer() const { return &som[0]; }
 
     //! Main routine for SOM training.
-    void training(Image<T> const& image);
+    void train(Image<T> const& image);
+
+    //! Main routine for SOM projection.
+    //! Returns the best matching neuron and the spatial transformation (rotation, flipping)
+    void project(Image<T> const& image) const;
 
     //! Main routine for SOM mapping.
-    void mapping(Image<T> const& image) const;
+    //! Returns a heatmap in the dimension of SOM, with the euclidean norm
+    void map(Image<T> const& image) const;
 
     //! Print matrix of SOM updates.
     void print_update_counter() const;
@@ -110,12 +115,16 @@ private:
 
     std::shared_ptr<DistanceFunctorBase> ptr_distance_functor;
 
-    // Counting updates of each neuron
+    //! Counting updates of each neuron
     std::vector<int> update_counter_matrix;
 
-    // Array for detailed timings
+    //! Array for detailed timings
 	std::array<std::chrono::high_resolution_clock::duration, 3> timer;
 
+    //!
+	std::vector<T> rotated_images;
+	std::vector<T> euclidean_distance_matrix;
+	std::vector<int> best_rotation_matrix;
 };
 
 } // namespace pink

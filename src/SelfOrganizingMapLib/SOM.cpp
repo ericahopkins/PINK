@@ -120,9 +120,6 @@ SOM<T>::SOM(int width, int height, int depth, Layout layout, bool periodic_bound
         std::cout << "  Size of SOM = " << getSizeInBytes() << " bytes\n" << std::endl;
     }
 
-	std::vector<T> rotated_images, euclidean_distance_matrix;
-	std::vector<int> best_rotation_matrix;
-
     if (cpu) {
 		rotated_images.resize(rotated_images_size);
 		euclidean_distance_matrix.resize(som_size);
