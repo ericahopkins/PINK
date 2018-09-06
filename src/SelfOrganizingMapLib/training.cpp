@@ -23,7 +23,7 @@ namespace pink {
 template <typename T>
 void SOM<T>::training(Image<T> const& image)
 {
-	generate_rotated_images(image);
+	auto&& rotated_images = generate_rotated_images(image);
 	generate_euclidean_distance_matrix();
 
 	auto&& best_match = find_best_match();
@@ -33,7 +33,7 @@ void SOM<T>::training(Image<T> const& image)
 }
 
 template <typename T>
-void SOM<T>::generate_rotated_images(Image<T> const& image) const
+std::vector<Image<T>> SOM<T>::generate_rotated_images(Image<T> const& image) const
 {
     TimeAccumulator localTimeAccumulator(timer[0]);
 
@@ -47,10 +47,19 @@ void SOM<T>::generate_euclidean_distance_matrix() const
 }
 
 template <typename T>
-int SOM<T>::find_best_match(float *euclideanDistanceMatrix, int som_size) const
+int SOM<T>::find_best_match() const
 {
     TimeAccumulator localTimeAccumulator(timer[2]);
 
+    int best_match = 0;
+    float min_euclidean_distance = euclideanDistanceMatrix[0];
+    for (size_t i = 1; i < som_size; ++i) {
+        if (euclideanDistanceMatrix[i] < minDistance) {
+            minDistance = euclideanDistanceMatrix[i];
+            best_match = i;
+        }
+    }
+    return best_match;
 }
 
 /// template instantiation

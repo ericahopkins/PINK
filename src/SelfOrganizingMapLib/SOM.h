@@ -30,6 +30,8 @@ class SOM
 {
 public:
 
+	typedef std::vector<T> NeuronType;
+
 	//! Default and parameter constructor
     SOM(int width, int height, int depth, Layout layout, bool periodic_boundary_conditions,
         int neuron_dim, int number_of_channels, DistributionFunction distribution_function,
@@ -69,15 +71,15 @@ public:
 
 private:
 
-    void generate_rotated_images(Image<T> const& image) const;
+    std::vector<Image<T>> generate_rotated_images(Image<T> const& image) const;
 
-    void generate_euclidean_distance_matrix() const;
+    std::tuple<std::vector<T>, std::vector<int>> generate_euclidean_distance_matrix(std::vector<Image<T>> const& rotated_images) const;
 
-    //! Returns the position of the best matching neuron (lowest euclidean distance).
-    int find_best_match(float *euclideanDistanceMatrix, int som_size) const;
+    //! Returns the position in SOM of the best matching neuron (lowest euclidean distance).
+    int find_best_match() const;
 
     //! Updating self organizing map.
-    void update_neurons(float *rotatedImages, int bestMatch, int *bestRotationMatrix);
+    void update_neurons(int best_match, std::vector<int> const& best_rotation_matrix);
 
     //! Updating one single neuron.
     void update_single_neuron(float *neuron, float *image, float factor);
@@ -97,19 +99,13 @@ private:
     int neuron_dim;
     int number_of_channels;
 
-    //! Internal value of total size for SOM tensor
-    int som_size;
-
-    //! Internal value of total size for neuron tensor
-    int neuron_size;
-
     DistributionFunction distribution_function;
     float sigma;
     float damping;
     int max_update_distance;
 
-    //! The real self organizing matrix.
-    std::vector<float> som;
+    //! The real self organizing matrix: A matrix of neurons
+    std::vector<NeuronType> som;
 
     std::shared_ptr<DistributionFunctorBase> ptr_distribution_functor;
 
@@ -120,11 +116,6 @@ private:
 
     //! Array for detailed timings
 	std::array<std::chrono::high_resolution_clock::duration, 3> timer;
-
-    //!
-	std::vector<T> rotated_images;
-	std::vector<T> euclidean_distance_matrix;
-	std::vector<int> best_rotation_matrix;
 };
 
 } // namespace pink

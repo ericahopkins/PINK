@@ -38,7 +38,7 @@ int main(int argc, char **argv)
     auto&& startTime = myclock::now();
 
     InputData inputData(argc, argv);
-    SOM som(inputData);
+    SOM<float> som(inputData);
 
     #if PINK_USE_CUDA
         if (inputData.useCuda)
