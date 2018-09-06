@@ -10,6 +10,9 @@
 
 namespace pink {
 
+struct Quadratic {};
+struct Hexagonal {};
+
 //! SOM layout type
 enum class Layout {
     QUADRATIC,

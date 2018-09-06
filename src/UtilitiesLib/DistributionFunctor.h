@@ -22,7 +22,7 @@ struct DistributionFunctorBase
 };
 
 /**
- * @brief Functor for mexican hat.
+ * @brief Gaussian functor
  *
  * 1.0 / (sigma * math.sqrt(2.0 * math.pi)) * math.exp(-1.0/2.0 * (x / sigma)**2 )
  */
@@ -32,7 +32,8 @@ struct GaussianFunctor : public DistributionFunctorBase
 
     float operator () (float distance) const
     {
-        return 1.0 / (sigma * sqrt(2.0 * M_PI)) * exp(-0.5 * pow((distance/sigma),2));
+    	static float f1 = 1.0 / (sigma * sqrt(2.0 * M_PI));
+        return f1 * exp(-0.5 * pow((distance/sigma),2));
     }
 
 private:
@@ -42,30 +43,29 @@ private:
 };
 
 /**
- * @brief Functor for mexican hat.
+ * @brief Mexican hat functor
  *
  * 2.0 / ( math.sqrt(3.0 * sigma) * math.pow(math.pi, 0.25)) * (1- x**2.0 / sigma**2.0) * math.exp(-x**2.0/(2.0 * sigma**2))
  */
 struct MexicanHatFunctor : public DistributionFunctorBase
 {
-    MexicanHatFunctor(float sigma) : sigma(sigma), sigma2(sigma*sigma)
+    MexicanHatFunctor(float sigma)
+     : sigma(sigma)
     {
-        if (sigma <= 0) throw std::runtime_error("MexicanHatFunctor: sigma <= 0 not defined.");
+        assert(sigma > 0.0);
     }
 
     float operator () (float distance) const
     {
+    	static float sigma2 = sigma * sigma;
+    	static float f1 = 2.0 / (sqrt(3.0 * sigma) * pow(M_PI, 0.25));
         float distance2 = distance * distance;
-             //2.0 / (sqrt(3.0 * GetParam().sigma * sqrt(M_PI))) * (1.0 - 1.0 / sigma2) * exp(-1.0 / (2.0 * sigma2))
-        return 2.0 / (sqrt(3.0 * sigma) * pow(M_PI, 0.25)) * (1.0 - distance2/sigma2) * exp(-distance2 / (2.0 * sigma2));
+        return f1 * (1.0 - distance2/sigma2) * exp(-distance2 / (2.0 * sigma2));
     }
 
 private:
 
     float sigma;
-
-    // Avoid multiple calculations.
-    float sigma2;
 
 };
 
