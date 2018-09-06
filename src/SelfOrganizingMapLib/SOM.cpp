@@ -28,14 +28,12 @@ SOM<T>::SOM(int width, int height, int depth, Layout layout, bool periodic_bound
    periodic_boundary_conditions(periodic_boundary_conditions),
    neuron_dim(neuron_dim),
    number_of_channels(number_of_channels),
-   som_size(width * height * depth),
-   neuron_size(neuron_dim * neuron_dim),
    distribution_function(distribution_function),
    sigma(sigma),
    damping(damping),
    max_update_distance(max_update_distance),
-   som(som_size * neuron_size * number_of_channels),
-   update_counter_matrix(som_size, 0),
+   som(width * height * depth),
+   update_counter_matrix(som.size(), 0),
    timer(std::chrono::high_resolution_clock::duration::zero())
 {
     // Initialize SOM
