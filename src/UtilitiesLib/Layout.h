@@ -10,7 +10,9 @@
 
 namespace pink {
 
-struct Quadratic {};
+template <int dim>
+struct Cartesian {};
+
 struct Hexagonal {};
 
 //! SOM layout type

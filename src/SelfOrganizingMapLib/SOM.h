@@ -25,7 +25,7 @@ using myclock = std::chrono::steady_clock;
 namespace pink {
 
 //! Self organizing matrix
-template <class Layout = Quadratic, int dimension = 2, class NeuronType>
+template <class SOMLayoutType = Cartesian<2>, class NeuronLayoutType = Cartesian<2>>
 class SOM
 {
 public:
