@@ -25,12 +25,10 @@ using myclock = std::chrono::steady_clock;
 namespace pink {
 
 //! Self organizing matrix
-template <class SOMLayoutType = Cartesian<2>, class NeuronLayoutType = Cartesian<2>>
+template <class SOMType = Cartesian<2>, class NeuronType = Neuron<Cartesian<2>, T>>
 class SOM
 {
 public:
-
-	typedef std::vector<T> NeuronType;
 
 	//! Default and parameter constructor
     SOM(int width, int height, int depth, Layout layout, bool periodic_boundary_conditions,
@@ -46,14 +44,6 @@ public:
     int getSize() const { return som.size(); }
 
     int getSizeInBytes() const { return som.size() * sizeof(T); }
-
-    std::vector<float> getData() { return som; }
-
-    const std::vector<float> getData() const { return som; }
-
-    float* getDataPointer() { return &som[0]; }
-
-    float const* getDataPointer() const { return &som[0]; }
 
     //! Main routine for SOM training.
     void train(Image<T> const& image);
