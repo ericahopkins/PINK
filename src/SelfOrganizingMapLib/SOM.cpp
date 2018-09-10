@@ -16,119 +16,13 @@
 
 namespace pink {
 
-template <typename T>
-SOM<T>::SOM(int width, int height, int depth, Layout layout, bool periodic_boundary_conditions,
-    int neuron_dim, int number_of_channels, DistributionFunction distribution_function,
-	float sigma, float damping, int max_update_distance,
-    SOMInitialization init, int seed, std::string const& init_filename)
- : width(width),
-   height(height),
-   depth(depth),
-   layout(layout),
-   periodic_boundary_conditions(periodic_boundary_conditions),
-   neuron_dim(neuron_dim),
-   number_of_channels(number_of_channels),
-   distribution_function(distribution_function),
-   sigma(sigma),
-   damping(damping),
-   max_update_distance(max_update_distance),
-   som(width * height * depth),
-   update_counter_matrix(som.size(), 0),
-   timer(std::chrono::high_resolution_clock::duration::zero())
-{
-    // Initialize SOM
-    if (init == SOMInitialization::ZERO)
-        fillWithValue(&som[0], som.size());
-    else if (init == SOMInitialization::RANDOM)
-        fillWithRandomNumbers(&som[0], som.size(), seed);
-    else if (init == SOMInitialization::RANDOM_WITH_PREFERRED_DIRECTION) {
-        fillWithRandomNumbers(&som[0], som.size(), seed);
-        for (int n = 0; n < som_size; ++n)
-            for (int c = 0; c < number_of_channels; ++c)
-                for (int i = 0; i < neuron_dim; ++i)
-                    som[(n*number_of_channels + c)*neuron_size + i*neuron_dim + i] = 1.0f;
-    }
-    else if (init == SOMInitialization::FILEINIT) {
-        std::ifstream is(init_filename);
-        if (!is) throw std::runtime_error("Error opening " + init_filename);
+template <typename SOMType>
+SOM<SOMType>::SOM(SOMType const& som_type)
+ : som()
+{}
 
-        int tmp;
-        is.read((char*)&tmp, sizeof(int));
-        if (tmp != number_of_channels) throw std::runtime_error("readSOM: wrong number_of_channels.");
-        is.read((char*)&tmp, sizeof(int));
-        if (tmp != width) throw std::runtime_error("readSOM: wrong width.");
-        is.read((char*)&tmp, sizeof(int));
-        if (tmp != height) throw std::runtime_error("readSOM: wrong height.");
-        is.read((char*)&tmp, sizeof(int));
-        if (tmp != depth) throw std::runtime_error("readSOM: wrong depth.");
-        is.read((char*)&tmp, sizeof(int));
-        if (tmp != neuron_dim) throw std::runtime_error("readSOM: wrong neuron_dim.");
-        is.read((char*)&tmp, sizeof(int));
-        if (tmp != neuron_dim) throw std::runtime_error("readSOM: wrong neuron_dim.");
-        is.read((char*)&som[0], number_of_channels * som_size * neuron_dim
-            * neuron_dim * sizeof(float));
-    } else
-        fatalError("Unknown init type.");
-
-    // Set distribution function
-    if (distribution_function == DistributionFunction::GAUSSIAN)
-        ptr_distribution_functor = std::make_shared<GaussianFunctor>(sigma);
-    else if (distribution_function == DistributionFunction::MEXICANHAT)
-        ptr_distribution_functor = std::make_shared<MexicanHatFunctor>(sigma);
-    else
-        fatalError("Unknown distribution function.");
-
-    int dimensionality = 1;
-    if (height > 1) ++dimensionality;
-    if (depth > 1) ++dimensionality;
-
-    // Set distance function
-    if (layout == Layout::QUADRATIC) {
-        if (periodic_boundary_conditions) {
-            if (dimensionality == 1) {
-                ptr_distance_functor = std::make_shared<CartesianDistanceFunctor<1, true>>(width);
-            } else if (dimensionality == 2) {
-                ptr_distance_functor = std::make_shared<CartesianDistanceFunctor<2, true>>(width, height);
-            } else if (dimensionality == 3) {
-                ptr_distance_functor = std::make_shared<CartesianDistanceFunctor<3, true>>(width, height, depth);
-            }
-        } else {
-            if (dimensionality == 1) {
-                ptr_distance_functor = std::make_shared<CartesianDistanceFunctor<1>>(width);
-            } else if (dimensionality == 2) {
-                ptr_distance_functor = std::make_shared<CartesianDistanceFunctor<2>>(width, height);
-            } else if (dimensionality == 3) {
-                ptr_distance_functor = std::make_shared<CartesianDistanceFunctor<3>>(width, height, depth);
-            }
-        }
-    } else if (layout == Layout::HEXAGONAL) {
-        ptr_distance_functor = std::make_shared<HexagonalDistanceFunctor>(width);
-    } else {
-        fatalError("Unknown layout.");
-    }
-
-    // Memory allocation
-    int rotated_images_size = number_of_channels * number_of_rotations * neuron_size;
-    if (use_flip) rotated_images_size *= 2;
-
-    if (verbose) {
-    	std::cout << "  Size of rotated images = " << rotated_images_size * sizeof(T) << " bytes" << std::endl;
-        std::cout << "  Size of euclidean distance matrix = " << som_size * sizeof(T) << " bytes" << std::endl;
-        std::cout << "  Size of best rotation matrix = " << som_size * sizeof(int) << " bytes" << std::endl;
-        std::cout << "  Size of SOM = " << getSizeInBytes() << " bytes\n" << std::endl;
-    }
-
-    if (cpu) {
-		rotated_images.resize(rotated_images_size);
-		euclidean_distance_matrix.resize(som_size);
-		best_rotation_matrix.resize(som_size);
-    } else {
-
-    }
-}
-
-template <typename T>
-SOM<T>::~SOM()
+template <typename SOMType>
+SOM<SOMType>::~SOM()
 {
     if (verbose) {
         std::cout << "  Time for image rotations = " << std::chrono::duration_cast<std::chrono::milliseconds>(timer[0]).count() << " ms" << std::endl;
@@ -137,8 +31,8 @@ SOM<T>::~SOM()
     }
 }
 
-template <typename T>
-void SOM<T>::write(std::string const& filename) const
+template <typename SOMType>
+void SOM<SOMType>::write(std::string const& filename) const
 {
     std::ofstream os(filename);
     if (!os) throw std::runtime_error("Error opening " + filename);
@@ -153,25 +47,68 @@ void SOM<T>::write(std::string const& filename) const
         * neuron_dim * neuron_dim * sizeof(float));
 }
 
-template <typename T>
-void SOM<T>::update_neurons(float *rotatedImages, int bestMatch, int *bestRotationMatrix)
+template <typename SOMType>
+template <typename DistributionFunctionType>
+void SOM<SOMType>::train(Image<T> const& image, DistributionFunctionType const& distribution_functor)
+{
+	auto&& rotated_images = generate_rotated_images(image);
+	generate_euclidean_distance_matrix();
+
+	auto&& best_match = find_best_match();
+
+	update_counter(best_match);
+	update_neurons(best_match);
+}
+
+template <typename SOMType>
+std::vector<Image<T>> SOM<SOMType>::generate_rotated_images(Image<T> const& image) const
+{
+    TimeAccumulator localTimeAccumulator(timer[0]);
+
+}
+
+template <typename SOMType>
+void SOM<SOMType>::generate_euclidean_distance_matrix() const
+{
+    TimeAccumulator localTimeAccumulator(timer[1]);
+
+}
+
+template <typename SOMType>
+int SOM<SOMType>::find_best_match() const
+{
+    TimeAccumulator localTimeAccumulator(timer[2]);
+
+    int best_match = 0;
+    float min_euclidean_distance = euclideanDistanceMatrix[0];
+    for (size_t i = 1; i < som_size; ++i) {
+        if (euclideanDistanceMatrix[i] < minDistance) {
+            minDistance = euclideanDistanceMatrix[i];
+            best_match = i;
+        }
+    }
+    return best_match;
+}
+
+template <typename SOMType>
+void SOM<SOMType>::update_neurons(int best_match, std::vector<int> const& best_rotation_matrix)
 {
     float distance, factor;
     float *current_neuron = &som[0];
 
     for (int i = 0; i < som_size; ++i) {
-        distance = (*ptr_distance_functor)(bestMatch, i);
+        distance = (*ptr_distance_functor)(best_match, i);
         if (max_update_distance <= 0.0 or distance < max_update_distance) {
             factor = (*ptr_distribution_functor)(distance) * damping;
-            updateSingleNeuron(current_neuron, rotatedImages + bestRotationMatrix[i]
+            update_single_neuron(current_neuron, rotatedImages + best_rotation_matrix[i]
                 * number_of_channels * neuron_size, factor);
         }
         current_neuron += number_of_channels * neuron_size;
     }
 }
 
-template <typename T>
-void SOM<T>::print_update_counter() const
+template <typename SOMType>
+void SOM<SOMType>::print_update_counter() const
 {
 	std::cout << "\n  Number of updates of each neuron:\n" << std::endl;
 	if (layout == Layout::HEXAGONAL) {
@@ -195,15 +132,7 @@ void SOM<T>::print_update_counter() const
 	}
 }
 
-template <typename T>
-void SOM<T>::updateSingleNeuron(float *neuron, float *image, float factor)
-{
-    for (int i = 0; i < number_of_channels * neuron_size; ++i) {
-        neuron[i] -= (neuron[i] - image[i]) * factor;
-    }
-}
-
 /// template instantiation
-template class SOM<float>;
+template class SOM<Cartesian<2, Cartesian<2, float>>>;
 
 } // namespace pink
