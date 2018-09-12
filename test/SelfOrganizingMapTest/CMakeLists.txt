@@ -11,7 +11,7 @@ add_executable(
     
 target_link_libraries(
     SelfOrganizingMapTest
-    SelfOrganizingMapLib
+#    SelfOrganizingMapLib
     ${GTEST_BOTH_LIBRARIES}
 )
 

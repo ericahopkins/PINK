@@ -24,56 +24,44 @@ using myclock = std::chrono::steady_clock;
 
 namespace pink {
 
-//! Self organizing matrix
-template <class Layout = Quadratic, int dimension = 2, class NeuronType>
+//! Self organizing map
+template <typename SOMType>
 class SOM
 {
 public:
 
-	typedef std::vector<T> NeuronType;
+    typedef typename SOMType::value_type NeuronType;
+    typedef typename NeuronType::value_type value_type;
 
 	//! Default and parameter constructor
-    SOM(int width, int height, int depth, Layout layout, bool periodic_boundary_conditions,
-        int neuron_dim, int number_of_channels, DistributionFunction distribution_function,
-		float sigma, float damping, int max_update_distance,
-        SOMInitialization init, int seed, std::string const& init_filename);
+    SOM(SOMType const& som_type);
 
 	//! Destructor
     ~SOM();
 
     void write(std::string const& filename) const;
 
-    int getSize() const { return som.size(); }
-
-    int getSizeInBytes() const { return som.size() * sizeof(T); }
-
-    std::vector<float> getData() { return som; }
-
-    const std::vector<float> getData() const { return som; }
-
-    float* getDataPointer() { return &som[0]; }
-
-    float const* getDataPointer() const { return &som[0]; }
-
     //! Main routine for SOM training.
-    void train(Image<T> const& image);
+    template <typename NeuronType, typename DistributionFunctionType>
+    void train(Image<NeuronType> const& image, DistributionFunctionType const& distribution_functor);
 
     //! Main routine for SOM projection.
     //! Returns the best matching neuron and the spatial transformation (rotation, flipping)
-    void project(Image<T> const& image) const;
+    // TODO: void project(Image<T> const& image) const;
 
     //! Main routine for SOM mapping.
     //! Returns a heatmap in the dimension of SOM, with the euclidean norm
-    void map(Image<T> const& image) const;
+    // TODO: void map(Image<T> const& image) const;
 
     //! Print matrix of SOM updates.
     void print_update_counter() const;
 
 private:
 
-    std::vector<Image<T>> generate_rotated_images(Image<T> const& image) const;
+    template <typename NeuronType, typename DistributionFunctionType>
+    std::vector<Image<NeuronType>> generate_rotated_images(Image<T> const& image) const;
 
-    std::tuple<std::vector<T>, std::vector<int>> generate_euclidean_distance_matrix(std::vector<Image<T>> const& rotated_images) const;
+    // TODO: std::tuple<std::vector<T>, std::vector<int>> generate_euclidean_distance_matrix(std::vector<Image<T>> const& rotated_images) const;
 
     //! Returns the position in SOM of the best matching neuron (lowest euclidean distance).
     int find_best_match() const;
@@ -81,35 +69,11 @@ private:
     //! Updating self organizing map.
     void update_neurons(int best_match, std::vector<int> const& best_rotation_matrix);
 
-    //! Updating one single neuron.
-    void update_single_neuron(float *neuron, float *image, float factor);
-
     //! Save position of current SOM update.
     void update_counter(int bestMatch) { ++update_counter_matrix[bestMatch]; }
 
-    //! SOM dimensions
-    int width;
-    int height;
-    int depth;
-
-    Layout layout;
-    bool periodic_boundary_conditions;
-
-    //! Neuron dimensions
-    int neuron_dim;
-    int number_of_channels;
-
-    DistributionFunction distribution_function;
-    float sigma;
-    float damping;
-    int max_update_distance;
-
-    //! The real self organizing matrix: A matrix of neurons
-    std::vector<NeuronType> som;
-
-    std::shared_ptr<DistributionFunctorBase> ptr_distribution_functor;
-
-    std::shared_ptr<DistanceFunctorBase> ptr_distance_functor;
+    //! The real self organizing map
+    SOMType som;
 
     //! Counting updates of each neuron
     std::vector<int> update_counter_matrix;

@@ -25,7 +25,7 @@ InputData::InputData()
    som_height(10),
    som_depth(1),
    neuron_dim(-1),
-   layout(Layout::QUADRATIC),
+   layout(Layout::CARTESIAN),
    seed(1234),
    numberOfRotations(360),
    numberOfThreads(-1),
@@ -123,7 +123,7 @@ InputData::InputData(int argc, char **argv)
             case 'l':
             {
                 stringToUpper(optarg);
-                if (strcmp(optarg, "QUADRATIC") == 0) layout = Layout::QUADRATIC;
+                if (strcmp(optarg, "CARTESIAN") == 0) layout = Layout::CARTESIAN;
                 else if (strcmp(optarg, "HEXAGONAL") == 0) layout = Layout::HEXAGONAL;
                 else {
                     printf ("optarg = %s\n", optarg);

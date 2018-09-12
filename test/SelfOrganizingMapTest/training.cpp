@@ -7,15 +7,15 @@
 
 #include "gtest/gtest.h"
 
-#include "ImageProcessingLib/Image.h"
-#include "SelfOrganizingMapLib/SOM.h"
+#include "SelfOrganizingMapLib/train.h"
 
 using namespace pink;
 
-TEST(SelfOrganizingMapTest, quadratic)
+TEST(SelfOrganizingMapTest, 2_dim_cartesian)
 {
-	SOM<float> som(3, 3, 1, Layout::QUADRATIC, 60, 1);
-	Image<float> image(100, 100);
+	Cartesian<2, Cartesian<2, float>> som({3, 3});
+	Cartesian<2, float> image({100, 100});
 
-	som.training(image);
+	Trainer trainer;
+	trainer(som, image);
 }
