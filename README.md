@@ -58,6 +58,8 @@ For conversion and visualization of images and SOM some python scripts are avail
   - showSOM.py:      Visualize binary SOM file format.
 
   - showHeatmap.py:  Visualize the mapping result.
+  
+  - rotations.py:    The best rotation and flip for the best neuron.
 
 
 ## Publication
